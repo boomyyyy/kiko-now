@@ -4,12 +4,11 @@ title: About
 permalink: /about/
 ---
 
-Some information about you!
+### TODO
 
-### More Information
-
-A place to include any other types of information that you'd like to include about yourself.
+<input type="checkbox"/>&nbsp;&nbsp;Java 集合体系 <br/>
+<input type="checkbox"/>&nbsp;&nbsp;Java 并发编程
 
 ### Contact me
 
-[email@domain.com](mailto:email@domain.com)
+[boom](mailto:boomyyyy@163.com)
