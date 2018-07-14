@@ -3,13 +3,14 @@
   window.WebFontConfig = {
       custom: {
           families: ['微软雅黑'],
-          urls: ['https://spoqa.github.io/spoqa-han-sans/css/SpoqaHanSans-kr.css']
+        //   urls: ['https://spoqa.github.io/spoqa-han-sans/css/SpoqaHanSans-kr.css']
+          urls: ['http://libs.cdnjs.net/spoqa-han-sans/2.1.1/css/SpoqaHanSans-kr.css']
       },
       timeout: 60000
   };
   (function(d) {
       var wf = d.createElement('script'), s = d.scripts[0];
-      wf.src = '/js/webfont.js';
+      wf.src = 'https://libs.cdnjs.net/webfont/1.5.18/webfontloader.js';
       s.parentNode.insertBefore(wf, s);
   })(document);
 </script>
