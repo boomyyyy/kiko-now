@@ -3,7 +3,7 @@ layout: post
 title: "Java 集合体系学习"
 description: "List、Set、Queue、Map"
 date: 2018-07-10
-tags: [Java]
+tags: [Java,集合]
 comments: true
 share: true
 ---
