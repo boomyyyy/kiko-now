@@ -367,7 +367,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     // （链表的下一个元素为空），则进行赋值，然后跳出循环
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
-                        // 如果链表长度到达 7 个，将链表转换为红黑树
+                        // 如果链表长度到达 7 个，将链表转换为红黑树，
                         if (binCount >= TREEIFY_THRESHOLD - 1) {
                             treeifyBin(tab, hash);
                         }
@@ -525,10 +525,45 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return newTab;
     }
 
+    /**
+     * 将链表数组转换为红黑树
+     * @param tab 链表数组
+     * @param hash 插入 key 的 hash 值
+     */
+    final void treeifyBin(Node<K,V>[] tab, int hash) {
+        // 声明临时变量
+        int n, index; Node<K,V> e;
+        // 如果链表数组为空或者链表数组的长度小于阈值时，优先进行扩容
+        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY) {
+            resize();
+        } 
+        // 计算 key 在链表数组中的具体下标，并校验该位置下的链表不为空
+        else if ((e = tab[index = (n - 1) & hash]) != null) {
+            // 声明临时变量
+            TreeNode<K,V> hd = null, tl = null;
+            // 遍历整个链表，并设置红黑树的 pre next 相关节点
+            do {
+                // 将链表节点替换为红黑树节点
+                TreeNode<K,V> p = replacementTreeNode(e, null);
+                // 设置 pre next 相关节点
+                if (tl == null) {
+                    hd = p;
+                } else {
+                    p.prev = tl;
+                    tl.next = p;
+                }
+                tl = p;
+            } while ((e = e.next) != null);
+            // 把链表所处在数组的位置重新复制给新的红黑树 root 节点，
+            // 并判断 root 节点不为空，然后将链表转换为红黑树。
+            if ((tab[index] = hd) != null)
+                hd.treeify(tab);
+        }
+    }
 
     /**
-     * 红黑树，当链表的长度到达一定的阈值（默认8）时，会将链表转换为红黑，
-     * 提升查询速度
+     * 红黑树，继承了 LinkedHashMap 的 Entry 类，其实红黑树也具备了链表
+     * 的特点
      */
     static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
         TreeNode<K,V> parent;  // red-black tree links

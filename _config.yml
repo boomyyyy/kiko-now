@@ -6,7 +6,7 @@
 name: BOOM
 
 # Short bio or description (displayed in the header)
-description: 我爱学习，学习使我快乐。^_^
+description: ✌️✌️✌️
 
 #
 # Flags below are optional
@@ -56,6 +56,11 @@ footer-text: © 2017 Kiko Now
 # Enter your Disqus shortname (not your username) to enable commenting on posts
 # You can find your shortname on the Settings page of your Disqus account
 disqus: boomyyyy.disqus.com
+
+# valine comments
+valine:
+  app_id: r9ncWdd0MhMMFHVEKb5i11ev-gzGzoHsz
+  app_key: 6BmNwaTFWt000q4LR2RSMyTA
 
 # Enter your Google Analytics web tracking code (e.g. UA-2110908-2) to activate tracking
 google_analytics:
