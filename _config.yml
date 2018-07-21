@@ -62,6 +62,7 @@ valine:
   app_id: r9ncWdd0MhMMFHVEKb5i11ev-gzGzoHsz
   app_key: 6BmNwaTFWt000q4LR2RSMyTA
   placeholder: 在这里输入评论........
+  visitor: true
 
 # Enter your Google Analytics web tracking code (e.g. UA-2110908-2) to activate tracking
 google_analytics: UA-122583146-1
