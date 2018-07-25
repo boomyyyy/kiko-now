@@ -612,31 +612,43 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Finds the node starting at root p with the given hash and key.
-         * The kc argument caches comparableClassFor(key) upon first use
-         * comparing keys.
+         * 红黑树查询方法
          */
         final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
+            // 复制当前对象到临时变量
             TreeNode<K,V> p = this;
             do {
+                // 初始化临时变量并赋值
                 int ph, dir; K pk;
                 TreeNode<K,V> pl = p.left, pr = p.right, q;
+                // 如果查询的 hash 小于当前节点的 hash 值
+                // 则将左子树赋值给临时变量，继续循环查找
                 if ((ph = p.hash) > h)
                     p = pl;
+                // 如果查询的 hash 大于当前节点的 hash 值
+                // 则将右子树赋值给临时变量，继续循环查找
                 else if (ph < h)
                     p = pr;
+                // 如果 key 相等，如果值相等， 则返回
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
+                // 如果左子树为空，则将右子树赋值给临时变量
                 else if (pl == null)
                     p = pr;
+                // 如果右子树为空，则将左子树赋值给临时变量
                 else if (pr == null)
                     p = pl;
+                // 判断 k 是否是 Comaprable 类型，如果是继续判断当前节点的
+                // key 跟 k 是否是同一类型，如果是则调用 compareTo 方法
+                // 比较两值的大小
                 else if ((kc != null ||
                           (kc = comparableClassFor(k)) != null) &&
                          (dir = compareComparables(kc, k, pk)) != 0)
                     p = (dir < 0) ? pl : pr;
+                // 以上情况都不满足的情况下则去右子树节点下查找
                 else if ((q = pr.find(h, k, kc)) != null)
                     return q;
+                // 左子树节点下查找
                 else
                     p = pl;
             } while (p != null);
