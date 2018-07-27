@@ -612,7 +612,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * 红黑树查询方法
+         * 红黑树查询实现方法方法
          */
         final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
             // 复制当前对象到临时变量
@@ -747,44 +747,77 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          */
         final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
                                        int h, K k, V v) {
+            // 参数 k 的 Class 类引用
             Class<?> kc = null;
+            // 当在前节点以下所有节点是否都对参数 k 进行了查询
             boolean searched = false;
+            // 将 root 节点赋值给临时变量
             TreeNode<K,V> root = (parent != null) ? root() : this;
+            // 将 root 节点作为查询的初始化节点
             for (TreeNode<K,V> p = root;;) {
+                // 声明临时变量
                 int dir, ph; K pk;
+                // 赋值当前节点的 hash 值给临时变量，并与要插入的
+                // k 的 hash 值进行比较，并将比较结果赋值给临时变量
                 if ((ph = p.hash) > h)
                     dir = -1;
                 else if (ph < h)
                     dir = 1;
+                // 如果当前节点的 key 与插入的 key 相等，则返回当前节点
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
+                // 如果无法通过 hash 和 key 进行比较，则判断插入的 key 是否
+                // 是 Comparable 类型，以及两个类是否属于同一类型，如果是则
+                // 调用 compareTo 比较两个 key 的大小，如果无法比较则从当前
+                // 节点开始，查询所有子节点是否存在 key 相同的情况，如果有有
+                // 直接返回。
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
                          (dir = compareComparables(kc, k, pk)) == 0) {
+                    // 如果以前没有进行过搜索，则查询当前节点下所有子节点的 key 
+                    // 跟插入的 key 是否一致，如果一致则直接返回原节点
                     if (!searched) {
                         TreeNode<K,V> q, ch;
+                        // 无论是否查到，都赋值给 searched 标识为已经查询过
                         searched = true;
+                        // 从当前节点的左右子节点开始查找是否有子节点跟
+                        // key 相等，如果有则直接返回
                         if (((ch = p.left) != null &&
                              (q = ch.find(h, k, kc)) != null) ||
                             ((ch = p.right) != null &&
                              (q = ch.find(h, k, kc)) != null))
                             return q;
                     }
+                    // 在 key 跟当前节点的 key 都不为空的情况下，通过类名去
+                    // 比较大小，否则通过调用 System.identityHashCode 生
+                    // 成的 hash 值去比较。Q:System.identityHashCode 的
+                    // 具体作用？
                     dir = tieBreakOrder(k, pk);
                 }
 
+                // 将当前节点赋值给临时变量
                 TreeNode<K,V> xp = p;
+                // 根据比较结果来更新查询节点的起始值，并判断是否为空，如果为空
+                // 则在此处生成一个新的节点
                 if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    // 将当前节点的下一个节点赋值给临时变量
                     Node<K,V> xpn = xp.next;
+                    // 构建一个新节点
                     TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                    // 如果 key 小于当前节点的 key 则赋值给左子树，赋值赋值
+                    // 给右子树
                     if (dir <= 0)
                         xp.left = x;
                     else
                         xp.right = x;
+                    // 将当前节点的下一节点更新为新插入的节点
                     xp.next = x;
+                    // 将新插入的节点的父节点、上一个节点赋值为当前节点
                     x.parent = x.prev = xp;
+                    // 更新 xpn 的上一个节点（真tm绕）
                     if (xpn != null)
                         ((TreeNode<K,V>)xpn).prev = x;
+                    
                     moveRootToFront(tab, balanceInsertion(root, x));
                     return null;
                 }
@@ -955,7 +988,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
-
+        // 左旋操作
         static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
@@ -992,53 +1025,95 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
+        /**
+        * 插入后修复红黑树性质
+        */
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
+            // 新插入的节点为空色
             x.red = true;
+            // 初始化相关变量
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
+                // xp 赋值为 x 节点的父节点，并且判断如果 x 的父节点为空
+                // 则表示 x 为红黑树的根节点，将 x 节点设置为黑色，并返回
                 if ((xp = x.parent) == null) {
                     x.red = false;
                     return x;
                 }
+                // 将 xp 的父节点赋值为 xpp（xpp 为插入的 x 节点的爷爷节点），
+                // 如果 xp 为黑色或者 xpp 节点为空，则代表 xp 为根节点，
+                // 因此不需要进行修复，直接返回
                 else if (!xp.red || (xpp = xp.parent) == null)
                     return root;
+                // 如果父节点为爷爷节点的左子树
                 if (xp == (xppl = xpp.left)) {
+                    // 如果爷爷节点的右子树不为空且也为红色，此时 x 的节点为
+                    // 红色且父节点跟叔叔节点也为红色，不符合红黑树性质，进行
+                    // 重新着色修复
                     if ((xppr = xpp.right) != null && xppr.red) {
+                        // x 的叔叔节点跟父节点设置为黑色
                         xppr.red = false;
                         xp.red = false;
+                        // x 的爷爷节点设置为红色
                         xpp.red = true;
+                        // 将 x 更新为爷爷节点
                         x = xpp;
                     }
                     else {
+                        // 如果叔叔节点为空或者为黑色，且 x 节点为父节点的右子节点
+                        // 则先进行左旋操作
                         if (x == xp.right) {
+                            // 左旋操作
                             root = rotateLeft(root, x = xp);
+                            // 更新爷爷节点
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
+                        // 如果父节点不为空
                         if (xp != null) {
+                            // 父节点设置为黑色
                             xp.red = false;
+                            // 如果爷爷节点不为空
                             if (xpp != null) {
+                                // 爷爷节点设置为红色
                                 xpp.red = true;
+                                // 进行右旋操作
                                 root = rotateRight(root, xpp);
                             }
                         }
                     }
                 }
+                // 如果父节点为爷爷的节点的右子节点
                 else {
+                    // 如果叔叔节点不为空且叔叔节点也为红色，
+                    // 直接进行重新着色来修复
                     if (xppl != null && xppl.red) {
+                        // 叔叔节点跟父节点设置为黑色
                         xppl.red = false;
                         xp.red = false;
+                        // 爷爷节点设置为红色
                         xpp.red = true;
+                        // x 节点更新为爷爷节点
                         x = xpp;
                     }
+                    // 如果叔叔节点为空或者为黑色
                     else {
+                        // 如果当前节点为父节点的左子节点
+                        // 先进行右旋操作
                         if (x == xp.left) {
+                            // 左旋操作
                             root = rotateRight(root, x = xp);
+                            // 更新爷爷节点
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
+                        // 如果父节点不为空
                         if (xp != null) {
+                            // 父节点设置为黑色
                             xp.red = false;
+                            // 爷爷节点不为空，则进行左旋操作
                             if (xpp != null) {
+                                // 爷爷节点设置为红色
                                 xpp.red = true;
+                                // 左旋操作
                                 root = rotateLeft(root, xpp);
                             }
                         }
