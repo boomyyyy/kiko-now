@@ -1,7 +1,6 @@
 ---
 layout: post
-title: "HashMap 源码解读---基于 JDK 1.8 版本"
-description: "HashMap 源码解读"
+title: "HashMap 源码解读(JDK 1.8)"
 date: 2018-07-13
 tags: [Java,集合]
 comments: true
@@ -10,7 +9,7 @@ share: true
 
 
 ## 概述
-HashMap 是我们常用的集合之一，其数据是键值对的格式存储的，我们常使用的方法有的 put、get、containsKey、containsValue 等，接下来我们会通过源码解析来了解他是如何实现的。以下代码会对源码进行一定的拆分书写
+HashMap 是我们常用的集合之一，其数据是键值对的格式存储的，底层使用的链表数组实现的，当某个链表的长度达到一定长度时，会优先对数组链表进行扩容，当链表数组达到一定的长度后，便会将链表转换为红黑树。我们常使用的方法有的 put、get、containsKey、containsValue 等，接下来我们会通过源码解析来了解他是如何实现的。
 
 
 ## 相关名词
@@ -126,7 +125,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-    * 存放数据的链表数组，本篇文章中所说的数组都是链表数组
+    * 存放数据的链表数组，本篇文章中所说的数组基本都是链表数组
     */
     transient Node<K,V>[] table;
 
@@ -562,21 +561,141 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * 红黑树，继承了 LinkedHashMap 的 Entry 类，其实红黑树也具备了链表
-     * 的特点
+     * 将另一个 map 中的数据插入到当前 map 中
+     *
+     * @param m 另一个存储数据的 map
+     * @throws NullPointerException 如果参数 map 为空
+     */
+    public void putAll(Map<? extends K, ? extends V> m) {
+        // 调用实现方法
+        putMapEntries(m, true);
+    }
+
+    /**
+     * 移除指定 key 的键值对映射
+     *
+     * @param  key 即将被移除的 key
+     * @return 如果 key 存在则返回 key 对应的 value，否则返回 null
+     */
+    public V remove(Object key) {
+        // 被移除的节点
+        Node<K,V> e;
+        // 移除节点并返回节点的 value
+        return (e = removeNode(hash(key), key, null, false, true)) == null ?
+            null : e.value;
+    }
+
+    /**
+     * Map.remove 的实现方法
+     *
+     * @param hash key 的 hash 值
+     * @param key 即将被移除的 key
+     * @param value 如果 matchValue 为 true，则当 key 与 value 同时一致时才移除
+     * @param matchValue 如果为 true 则校验 key 对应的 value 与传入的是否一致
+     * @param movable 如果为 false 则不一定其他节点
+     * @return 如果 key 存在则返回被移除的节点，否则返回 null
+     */
+    final Node<K,V> removeNode(int hash, Object key, Object value,
+                               boolean matchValue, boolean movable) {
+        //声明临时变量
+        Node<K,V>[] tab; Node<K,V> p; int n, index;
+        // 如果当前链表数组不为空且 key 所在的数组下标对应的链表不为空
+        if ((tab = table) != null && (n = tab.length) > 0 &&
+            (p = tab[index = (n - 1) & hash]) != null) {
+            Node<K,V> node = null, e; K k; V v;
+            // 校验链表头结点是否是要删除的节点
+            if (p.hash == hash &&
+                ((k = p.key) == key || (key != null && key.equals(k))))
+                node = p;
+            // 判断头结点的下一个节点不为空
+            else if ((e = p.next) != null) {
+                // 如果节点是红黑树节点，调用红黑树的查询方法
+                if (p instanceof TreeNode)
+                    node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+                else {
+                    // 遍历链表，找到 key 相同的节点并跳出循环
+                    do {
+                        if (e.hash == hash &&
+                            ((k = e.key) == key ||
+                             (key != null && key.equals(k)))) {
+                            node = e;
+                            break;
+                        }
+                        p = e;
+                    } while ((e = e.next) != null);
+                }
+            }
+            // 如果被移除的节点不为并且在匹配 value 的情况下，value 相等，则删除节点
+            // （这个判断写的属实绕！！！）
+            if (node != null && (!matchValue || (v = node.value) == value ||
+                                 (value != null && value.equals(v)))) {
+                // 如果节点是红黑树节点，则调用红黑树的移出方法
+                if (node instanceof TreeNode)
+                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+                // 如果移出的是链表的头结点，则直接指向头结点的下一个节点
+                else if (node == p)
+                    tab[index] = node.next;
+                // 否则将 node 的上一个节点的下一个节点指向 node 的下一个节点
+                else
+                    p.next = node.next;
+                // 修改次数加一
+                ++modCount;
+                // map 的键值对数量减一
+                --size;
+                // 移出数据后的回调，HashMap 是个空方法，LinkedHashMap 中有实现
+                afterNodeRemoval(node);
+                // 返回被移除的节点
+                return node;
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * 红黑树，具有五个基本性质
+     * 1. 每个节点只有一种颜色，要么红色，要么黑色
+     * 2. 根节点是黑色
+     * 3. 叶节点（空节点）是黑色
+     * 4. 如果节点是红色，那么他的两个子节点都是黑色
+     * 5. 任意的节点，从该节点到其所有后代叶节点的简单路径，均包含相同数目的黑色节点，
+     * 每次新增或删除一个节点后，都有可能破坏红红黑树的这几个基本性质，因此每次操作后
+     * 都需要对其进行自底向上的修复操作，修复操作分为两类：
+     * 1. 重新着色
+     * 2. 旋转操作
+     * 该类还继承了 Entry 类，说明该类还具有链表相关的特性。
      */
     static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
-        TreeNode<K,V> parent;  // red-black tree links
+        /*
+        * 父节点
+        */ 
+        TreeNode<K,V> parent;
+        /*
+        * 左子节点
+        */ 
         TreeNode<K,V> left;
+        /*
+        * 右子节点
+        */ 
         TreeNode<K,V> right;
-        TreeNode<K,V> prev;    // needed to unlink next upon deletion
+        /*
+        * 下一个节点（链表特点）
+        */ 
+        TreeNode<K,V> prev;
+        /*
+        * 节点颜色，true 红色，false 黑色
+        */ 
         boolean red;
+
+        /**
+        * 构造函数，初始化一个树节点
+        */
         TreeNode(int hash, K key, V val, Node<K,V> next) {
             super(hash, key, val, next);
         }
 
         /**
-         * Returns root of tree containing this node.
+         * 获取红黑树的根节点
          */
         final TreeNode<K,V> root() {
             for (TreeNode<K,V> r = this, p;;) {
@@ -587,26 +706,45 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Ensures that the given root is the first node of its bin.
+         * 将红黑树的根节点与红黑树所处的链表数组的下标下存储的节点对应，并设置红黑树的根节点为
+         * 链表的头结点
          */
         static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
+            // 链表数组长度
             int n;
+            // 参数校验，root 跟 链表数组均不为空
             if (root != null && tab != null && (n = tab.length) > 0) {
+                // 重新计算红黑树 root 节点所处链表数组的下标位置
                 int index = (n - 1) & root.hash;
+                // 下标对应的链表头节点
                 TreeNode<K,V> first = (TreeNode<K,V>)tab[index];
+                // 如果红黑树的根节点和下标下的链表头结点不一致
                 if (root != first) {
+                    // 红黑树根节点的下一个节点
                     Node<K,V> rn;
+                    // 将下标对应的节点更改为红黑树的根节点
                     tab[index] = root;
+                    // 红黑树根节点的上一个节点
                     TreeNode<K,V> rp = root.prev;
+                    // 如果根节点的上一个节点不为空
                     if ((rn = root.next) != null)
+                        // 根节点的下一个节点的上一个节点指向根节点的上一个节点，
+                        // 相当于把根节点从链表中删除
                         ((TreeNode<K,V>)rn).prev = rp;
+                    // 如果根节点的上一个节点上一个节点不为空
                     if (rp != null)
+                        // 根节点的上一个节点的下一个节点指向根节点的下一个节点
                         rp.next = rn;
+                    // 链表的头结点不为空
                     if (first != null)
+                        // 链表的头结点指向红黑树的根节点
                         first.prev = root;
+                    // 根节点的下个节点指向原链表的头结点
                     root.next = first;
+                    // 根节点的上个节点设置为空
                     root.prev = null;
                 }
+                // 校验数据正常
                 assert checkInvariants(root);
             }
         }
@@ -656,18 +794,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Calls find for root node.
+         * 通过 key 和 key 的 hash 值查询红黑树节点
          */
         final TreeNode<K,V> getTreeNode(int h, Object k) {
             return ((parent != null) ? root() : this).find(h, k, null);
         }
 
         /**
-         * Tie-breaking utility for ordering insertions when equal
-         * hashCodes and non-comparable. We don't require a total
-         * order, just a consistent insertion rule to maintain
-         * equivalence across rebalancings. Tie-breaking further than
-         * necessary simplifies testing a bit.
+         * 在 hashCode 相等且 key 均没有实现 Comparable 进行比较的情况下，
+         * 调用该方法比较两个 key 的大小
          */
         static int tieBreakOrder(Object a, Object b) {
             int d;
@@ -680,23 +815,35 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Forms tree of the nodes linked from this node.
-         * @return root of tree
+         * 将链表转换为红黑树
          */
         final void treeify(Node<K,V>[] tab) {
+            // 初始化 root 节点的临时变量
             TreeNode<K,V> root = null;
+            // 循环当前红黑树，设置红黑树的相关属性
             for (TreeNode<K,V> x = this, next; x != null; x = next) {
+                // 赋值下一个节点给 next 变量
                 next = (TreeNode<K,V>)x.next;
+                // 初始化当前节点的左右子节点
                 x.left = x.right = null;
+                // 如果 root 为空（第一次遍历），将当前对象设置为红黑树的根节点
                 if (root == null) {
+                    // 根节点的父节点为空
                     x.parent = null;
+                    // 根节点为黑色
                     x.red = false;
+                    // x 赋值给 root 节点变量
                     root = x;
                 }
                 else {
+                    // 将当前节点的 key 和 hash 赋值给临时变量
                     K k = x.key;
                     int h = x.hash;
+                    // key 的 Class 对象
                     Class<?> kc = null;
+                    // 将当前节点插入到红黑树中，对 putTreeVal 方法进行了简化，
+                    // 因为是第一次插入，不会再去查询 key 是否已经在红黑树中存在了，
+                    // 进而提升一定的效率
                     for (TreeNode<K,V> p = root;;) {
                         int dir, ph;
                         K pk = p.key;
@@ -722,12 +869,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     }
                 }
             }
+            // 确保红黑树根节点与红黑树所处的链表数组的下标下存储的节点对应
+            // （保证每次搜索时是从红黑树的根节点去搜索啊！！！）
             moveRootToFront(tab, root);
         }
 
         /**
-         * Returns a list of non-TreeNodes replacing those linked from
-         * this node.
+         * 将红黑树转换为链表
          */
         final Node<K,V> untreeify(HashMap<K,V> map) {
             Node<K,V> hd = null, tl = null;
@@ -743,13 +891,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Tree version of putVal.
+         * 红黑树版本的插入数据实现方法
          */
         final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
                                        int h, K k, V v) {
             // 参数 k 的 Class 类引用
             Class<?> kc = null;
-            // 当在前节点以下所有节点是否都对参数 k 进行了查询
+            // 当前节点以下所有节点是否都对参数 k 进行了查询
             boolean searched = false;
             // 将 root 节点赋值给临时变量
             TreeNode<K,V> root = (parent != null) ? root() : this;
@@ -763,13 +911,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     dir = -1;
                 else if (ph < h)
                     dir = 1;
-                // 如果当前节点的 key 与插入的 key 相等，则返回当前节点
+                // 此时 hash 值应该是相等的，再去比较如果当前节点的 key 与插入的 key 相等，
+                // 则返回当前节点，因为有可能会出现 hash 值相等但 key 不相同的情况，
+                // 因此没有单纯的直接使用 hash 去比较是否相等，而是直接因为这样可能会出现 bug
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
-                // 如果无法通过 hash 和 key 进行比较，则判断插入的 key 是否
+                // 在通过 hash 值跟 k 比较不出的情况下，则判断插入的 key 是否
                 // 是 Comparable 类型，以及两个类是否属于同一类型，如果是则
                 // 调用 compareTo 比较两个 key 的大小，如果无法比较则从当前
-                // 节点开始，查询所有子节点是否存在 key 相同的情况，如果有有
+                // 节点开始，查询所有子节点是否存在 key 相等的情况，如果有就
                 // 直接返回。
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
@@ -797,8 +947,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
                 // 将当前节点赋值给临时变量
                 TreeNode<K,V> xp = p;
-                // 根据比较结果来更新查询节点的起始值，并判断是否为空，如果为空
-                // 则在此处生成一个新的节点
+                // 根据比较结果来判断应该是插入到左右子节点中的哪一个，并判断
+                // 其是否为空，如果为空则插入一个新的节点，否则更新循环条件，继续比较
                 if ((p = (dir <= 0) ? p.left : p.right) == null) {
                     // 将当前节点的下一个节点赋值给临时变量
                     Node<K,V> xpn = xp.next;
@@ -825,99 +975,144 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Removes the given node, that must be present before this call.
-         * This is messier than typical red-black deletion code because we
-         * cannot swap the contents of an interior node with a leaf
-         * successor that is pinned by "next" pointers that are accessible
-         * independently during traversal. So instead we swap the tree
-         * linkages. If the current tree appears to have too few nodes,
-         * the bin is converted back to a plain bin. (The test triggers
-         * somewhere between 2 and 6 nodes, depending on tree structure).
+         * 删除给定的节点
          */
         final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
                                   boolean movable) {
             int n;
+            // 参数校验
             if (tab == null || (n = tab.length) == 0)
                 return;
+            // 当前节点在数组中的下标
             int index = (n - 1) & hash;
+            // 声明链表的头结点跟红黑树的头节点，红黑树的头结点的左子树
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+            // 当前节点的下一个节点和上一个节点
             TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            // 如果当前节点头结点，直接将数组下标对应的节点改成当前节点的下一个节点
             if (pred == null)
                 tab[index] = first = succ;
+            // 否则上一个节点的下一个节点改成当前节点的下一个节点
             else
                 pred.next = succ;
+            // 如果下一个节点不为空，将下一个节点的上一个节点改成当前节点的上一个节点
             if (succ != null)
                 succ.prev = pred;
+            // 如果链表的头结点为空，则直接返回
             if (first == null)
                 return;
+            // 如果 root 节点不是红黑树的根节点，则赋值为红黑树的根节点
             if (root.parent != null)
                 root = root.root();
+            // 如果根节点为空或者根节点的左右子节点任意一个为空或者左子节点的
+            // 左子节点为空，则代表红黑树数据量太小，转换为链表
             if (root == null || root.right == null ||
                 (rl = root.left) == null || rl.left == null) {
-                tab[index] = first.untreeify(map);  // too small
+                tab[index] = first.untreeify(map);
                 return;
             }
+            // p 被删除的节点，pl p的左子节点，pr p的右子节点，
+            // replacement 在被删除节点的做右子节点都不为空的情况下，是被删除节点的后继节点的后继节点
+            // 否则便是被删除节点的后继节点
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+            // 如果左右子节点都不为空，寻找后继节点（右子树的最小值或者左子树的最大值为后继节点）和后继节点的
+            // 后继节点，并将后继节点与被删除节点交换位置
             if (pl != null && pr != null) {
                 TreeNode<K,V> s = pr, sl;
-                while ((sl = s.left) != null) // find successor
+                // 循环遍历右子树，获得最小值为后继节点
+                while ((sl = s.left) != null)
                     s = sl;
-                boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+                // 交换颜色
+                boolean c = s.red; s.red = p.red; p.red = c;
+                // 后继节点的右子节点
                 TreeNode<K,V> sr = s.right;
+                // 被删除节点的父节点
                 TreeNode<K,V> pp = p.parent;
-                if (s == pr) { // p was s's direct parent
+                // 如果被删除的节点是后继节点的父节点
+                if (s == pr) {
+                    // 将被删除节点的父节点设置为后继节点
                     p.parent = s;
+                    // 后继节点的右子节点设置为被删除节点
                     s.right = p;
                 }
                 else {
+                    // 后继节点的父节点
                     TreeNode<K,V> sp = s.parent;
+                    // 被删除节点的父节点设置为后继节点的父节点，并判断不为空
                     if ((p.parent = sp) != null) {
+                        // 如果后继节点是父节点的左子节点，则替换为被删除的节点
+                        // 否则将右子节点替换为被删除的节点
                         if (s == sp.left)
                             sp.left = p;
                         else
                             sp.right = p;
                     }
+                    // 后继节点的右子节点设置为被删除节点的右子节点
                     if ((s.right = pr) != null)
+                        // 并将右子节点的父子节点设置为后继节点
                         pr.parent = s;
                 }
+                // 因为后继节点是被删除节点的右子树的最小值，所以后继节点肯定没有左子节点，
+                // 因此直接将被删除节点的左子节点设置为空
                 p.left = null;
+                // 将被删除节点的右子节点替换为后继节点的右子节点
                 if ((p.right = sr) != null)
                     sr.parent = p;
+                // 将后继节点的左子节点设置为被删除节点的左子节点
                 if ((s.left = pl) != null)
                     pl.parent = s;
+                // 将后继节点的父节点设置为被删除节点的父节点，如果父节点为空
+                // 则将后继节点设置为红黑树的根节点
                 if ((s.parent = pp) == null)
                     root = s;
+                // 如果被删除节点是原父节点的左子节点，则将后继节点设置为父节点的左子节点
+                // 否则设置为右子节点
                 else if (p == pp.left)
                     pp.left = s;
                 else
                     pp.right = s;
+                // 因为后继节点不存在左子节点，所以直接判断右子节点是否为空，如果右子节点不为空
+                // 右子节点来替换后继节点，否则被删除节点替换后继节点
                 if (sr != null)
                     replacement = sr;
                 else
                     replacement = p;
             }
+            // 如果只有左子节点不为空，则将后继节点设置为左子节点
             else if (pl != null)
                 replacement = pl;
+            // 如果只有右子节点不为空，则将后继节点设置为右子节点
             else if (pr != null)
                 replacement = pr;
+            // 否则后继节点就是被删除节点本身
             else
                 replacement = p;
+            // 如果后继节点不是被删除节点本身
             if (replacement != p) {
+                // 后继节点的父节点设置为被删除节点的父节点
                 TreeNode<K,V> pp = replacement.parent = p.parent;
+                // 如果父节点为空，则将根节点设置为后继节点
                 if (pp == null)
                     root = replacement;
+                // 将父节点与后继节点关联（此时已经将被删除的节点从书中删除）
                 else if (p == pp.left)
                     pp.left = replacement;
                 else
-                    pp.right = replacement;
+                    pp.right = replacement; 
+                // 删除被删除节点对父节点、左右子节点的引用
                 p.left = p.right = p.parent = null;
             }
-
+            
+            // 根据被删除节点的颜色，判断是否修复红黑树的性质，因为如果被删除的节点是黑色，
+            // 则可能导致该路径比其他路径少一颗黑色节点从而破坏红黑树性质，因此需要修复红黑树
             TreeNode<K,V> r = p.red ? root : balanceDeletion(root, replacement);
 
-            if (replacement == p) {  // detach
+            // 如果后继节点为被删除结点本身，删除与父节点的相互引用
+            if (replacement == p) {
                 TreeNode<K,V> pp = p.parent;
+                // 删除对父节点的引用
                 p.parent = null;
+                // 父节点删除对被删除节点的引用
                 if (pp != null) {
                     if (p == pp.left)
                         pp.left = null;
@@ -925,6 +1120,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         pp.right = null;
                 }
             }
+            // 如果为 true， 确保红黑树根节点与红黑树所处的链表数组的下标下存储的节点对应
             if (movable)
                 moveRootToFront(tab, r);
         }
@@ -986,9 +1182,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        /* ------------------------------------------------------------ */
-        // Red-black tree methods, all adapted from CLR
-        // 左旋操作
+        /**
+        * 左旋操作
+        */
         static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
@@ -1007,6 +1203,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
+        /**
+        * 右旋操作
+        */
         static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
@@ -1040,7 +1239,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     x.red = false;
                     return x;
                 }
-                // 将 xp 的父节点赋值为 xpp（xpp 为插入的 x 节点的爷爷节点），
+                // 将 xp 的父节点赋值为 xpp（xpp 为插入节点即 x 节点的爷爷节点），
                 // 如果 xp 为黑色或者 xpp 节点为空，则代表 xp 为根节点，
                 // 因此不需要进行修复，直接返回
                 else if (!xp.red || (xpp = xp.parent) == null)
@@ -1122,40 +1321,60 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
+        /**
+        * 删除节点后修复红黑树的性质，参数 x 黑色
+        */
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
+            // 自底向上修复红黑树
             for (TreeNode<K,V> xp, xpl, xpr;;)  {
+                // 如果 x 节点为空或者为根节点，则停止修复
                 if (x == null || x == root)
                     return root;
+                // 如果 x 节点为根节点，直接将其设置为黑色
                 else if ((xp = x.parent) == null) {
                     x.red = false;
                     return x;
                 }
+                // 如果为红色，设置为黑色
                 else if (x.red) {
                     x.red = false;
                     return root;
                 }
+                // 如果 x 节点是父节点的左子节点
                 else if ((xpl = xp.left) == x) {
+                    // //有红色的兄弟节点xpr，则父亲节点xp必为黑色
                     if ((xpr = xp.right) != null && xpr.red) {
+                        // 兄弟节点设置为黑色
                         xpr.red = false;
+                        // 父节点设置为红色
                         xp.red = true;
+                        // 父节点左旋
                         root = rotateLeft(root, xp);
+                        // 更新 xp 为 x 的父节点，xpr 为 xp 的右子节点
                         xpr = (xp = x.parent) == null ? null : xp.right;
                     }
+                    // 如果兄弟节点为空
                     if (xpr == null)
                         x = xp;
                     else {
                         TreeNode<K,V> sl = xpr.left, sr = xpr.right;
+                        // 如果原叔叔树节点的左右子树都不为空切且为黑色，则将原叔叔节点
+                        // 设置为红色，更新 x 节点为原父节点
                         if ((sr == null || !sr.red) &&
                             (sl == null || !sl.red)) {
                             xpr.red = true;
                             x = xp;
                         }
                         else {
+                            // 如果原叔叔节点的右子树为空，或者为黑色
                             if (sr == null || !sr.red) {
+                                // 如果左子节点不为空，左子节点也设置为黑色
                                 if (sl != null)
                                     sl.red = false;
+                                // 原叔叔节点设置为红色
                                 xpr.red = true;
+                                // 原叔叔节点右旋
                                 root = rotateRight(root, xpr);
                                 xpr = (xp = x.parent) == null ?
                                     null : xp.right;
@@ -1173,7 +1392,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         }
                     }
                 }
-                else { // symmetric
+                // 如果 x 节点是父节点的右子节点，对称操作
+                else {
                     if (xpl != null && xpl.red) {
                         xpl.red = false;
                         xp.red = true;
@@ -1215,7 +1435,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * Recursive invariant check
+         * 校验节点既符合链表特点也符合红黑树特点
          */
         static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
