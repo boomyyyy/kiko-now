@@ -12,10 +12,10 @@ permalink: /about/
 <input type="checkbox"/>&nbsp;&nbsp;IO<br/>
 <input type="checkbox"/>&nbsp;&nbsp;垃圾回收<br/>
 <input type="checkbox"/>&nbsp;&nbsp;类加载过程<br/>
-<input type="checkbox"/>&nbsp;&nbsp;反射</br>
-<input type="checkbox"/>&nbsp;&nbsp;序列化</br>
-<input type="checkbox"/>&nbsp;&nbsp;克隆</br>
-<input type="checkbox"/>&nbsp;&nbsp;迭代器（顺序，并行）</br>
+<input type="checkbox"/>&nbsp;&nbsp;反射<br/>
+<input type="checkbox"/>&nbsp;&nbsp;序列化<br/>
+<input type="checkbox"/>&nbsp;&nbsp;克隆<br/>
+<input type="checkbox"/>&nbsp;&nbsp;迭代器（顺序，并行）<br/>
 
 
 ### 框架相关
