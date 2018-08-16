@@ -2,7 +2,7 @@
 layout: post
 title: "ConcurrentHashMap 简述(JDK 1.8)"
 date: 2018-08-04
-tags: [Java,集合]
+tags: [Java,集合,并发]
 comments: true
 share: true
 ---
@@ -108,6 +108,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 }
             }
         }
+        // map 大小 + 1
         addCount(1L, binCount);
         return null;
     }

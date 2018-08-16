@@ -16,3 +16,7 @@ share: true
 
 * 命令：chgrp 组 目录或文件名
 * 例如：chgrp qq /home/qq  (把home目录下的qq目录的所属组改为qq组)
+
+## 同时切换未见所属组和用户
+
+* chown user:group /home/qq
