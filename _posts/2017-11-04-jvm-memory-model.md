@@ -3,7 +3,7 @@ layout: post
 title: "JVM 内存模型概述"
 description: "JVM 内存模型"
 date: 2017-11-04
-tags: [Java]
+tags: [Java, JVM]
 comments: true
 share: true
 ---
