@@ -8,7 +8,6 @@ share: true
 ---
 
 ## Reference
-
 在 JDK 1.2 之前，Java 中的引用的定义很传统：如果 reference 类型的数据中存储的数值代表的是另一块内存的起始地址，就称这块内存代表着一个引用。这种定义很纯粹，但是太多狭隘，一个对象在这种定义下只有被引用活着没有被引用两种状态。在 JDK 1.2 之后，Java 对引用的概念进行了扩充，将引用分为强引用（Strong Reference）、软引用（Soft Reference）、弱引用（Weak Reference）、虚引用（Phantom Reference）4种，这 4 种引用强度一次逐渐减弱。
 
 - 强引用就是指在程序代码之中普遍存在的，类似 “Object obj = new Object()” 这类的引用，只要强引用还存在，垃圾收集器永远不会回收掉被引用的对象。
@@ -24,7 +23,6 @@ share: true
 ![java ref structure](/images/java_ref_structure.png)
 
 ## ReferenceQueue
-
 通过 Reference 的构造函数我们可以看到在初始化的时候会传入一个 ReferenceQueue ，而 ReferenceQueue 的作用就像是在 Reference 引用的对象被 GC 掉后，会把 Reference 这个对象放入到 ReferenceQueue 中做后续处理工作。代码示例如下：
 
 ```java
