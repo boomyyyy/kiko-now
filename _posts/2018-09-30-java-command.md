@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "JVM 故障处理常用命令"
+title: "JVM 故障排查常用命令"
 date: 2018-09-30
 tags: [Java, JVM, 工具]
 comments: true
