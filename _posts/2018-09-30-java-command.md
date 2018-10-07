@@ -189,6 +189,9 @@ Server is ready.
 
 ![jhat 的分析结果](/images/jhat-analysis.png)
 
+***命令相关选项及打印信息可参考 [jhat](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jhat.html#CIHHJAGE){:target="_blank"}***
+
+
 ## jstack
 
 jstack（Stack Trace for Java）命令用于生成虚拟机当前时刻的进程快照（一般称为 threaddump 或者 javacore 文件）。线程快照就是当前虚拟机内每一条线程正在执行的方法堆栈的集合，生成线程快照的主要目的是定位线程出现长时间停顿的原因，如线程间死锁、死循环、请求外部资源导致的长时间等待等都是导致线程长时间停顿的常见原因。线程出现停顿的时候通过 jstack 来查看各个线程的调用堆栈，就可以知道没有响应的线程到底在后台做些什么事情，活着等待着什么资源。
@@ -250,4 +253,4 @@ Full thread dump Java HotSpot(TM) 64-Bit Server VM (25.131-b11 mixed mode):
 |-l|除了堆栈外，显示关于锁的附加信息|
 |-m|如果调用到本地方法的话，可以显示 C/C++ 的堆栈|
 
-***命令相关选项及打印信息可参考 [jhat](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jhat.html#CIHHJAGE){:target="_blank"}***
+***命令相关选项及打印信息可参考 [jstack](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jstack.html#BABGJDIF){:target="_blank"}***
