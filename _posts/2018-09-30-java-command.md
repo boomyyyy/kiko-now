@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "JVM 故障处理常用命令"
-date: 2018-09-02
+date: 2018-09-30
 tags: [Java, JVM, 工具]
 comments: true
 share: true
@@ -249,3 +249,5 @@ Full thread dump Java HotSpot(TM) 64-Bit Server VM (25.131-b11 mixed mode):
 |-F|当正常输出的请求不被响应时，强制输出线程堆栈|
 |-l|除了堆栈外，显示关于锁的附加信息|
 |-m|如果调用到本地方法的话，可以显示 C/C++ 的堆栈|
+
+***命令相关选项及打印信息可参考 [jhat](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jhat.html#CIHHJAGE){:target="_blank"}***
